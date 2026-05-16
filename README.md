@@ -1,1 +1,3 @@
-# Ratio-Sequencing
+# Ratio-SequencingI work in a garments digitalization team. I am trying to make a system to sequence the markers given by the CAD department to align with the cutting cutoff date.
+
+Markers are physical paper layouts that are used to cut multiple plies of fabric. The order sheet contains the color, date, and size-wise order quantity. They need to cut the colors separately. As the cutting department cannot cut the total order amount together, they need to cut two to four shipment dates' orders together. So I need a feature to get the order quantity from the excel shipment date have a option to select them 
