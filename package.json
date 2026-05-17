@@ -1,0 +1,28 @@
+{
+  "name": "cut-ratio-sequencer",
+  "version": "1.0.0",
+  "description": "Garment production planning tool for cut ratio sequencing",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "test": "echo "Error: no test specified" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/cut-ratio-sequencer.git"
+  },
+  "keywords": [
+    "garment",
+    "production",
+    "planning",
+    "sequencing",
+    "excel",
+    "manufacturing"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/cut-ratio-sequencer/issues"
+  },
+  "homepage": "https://github.com/yourusername/cut-ratio-sequencer#readme"
+}

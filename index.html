@@ -1,868 +1,220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Marker Selection Optimiser · ILP Branch & Bound</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg:        #0d0f14;
-    --sidebar:   #13161e;
-    --panel:     #181c26;
-    --border:    #252a38;
-    --border2:   #2e3447;
-    --accent:    #4f8ef7;
-    --accent2:   #7bc4ff;
-    --success:   #2dd4a0;
-    --warn:      #f59e0b;
-    --danger:    #f87171;
-    --text:      #e2e8f0;
-    --muted:     #64748b;
-    --mono:      'IBM Plex Mono', monospace;
-    --sans:      'DM Sans', sans-serif;
-  }
-
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    font-family: var(--sans);
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    display: flex;
-    overflow: hidden;
-  }
-
-  /* ── SIDEBAR ── */
-  aside {
-    width: 260px;
-    min-width: 260px;
-    background: var(--sidebar);
-    border-right: 1px solid var(--border);
-    display: flex;
-    flex-direction: column;
-    padding: 28px 0;
-    z-index: 10;
-  }
-
-  .logo {
-    padding: 0 24px 28px;
-    border-bottom: 1px solid var(--border);
-  }
-  .logo-tag {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 2.5px;
-    color: var(--accent);
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .logo-title {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 1.3;
-    color: var(--text);
-  }
-
-  nav { padding: 20px 12px; flex: 1; }
-  .nav-section {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 2px;
-    color: var(--muted);
-    padding: 0 12px 8px;
-    text-transform: uppercase;
-  }
-  .nav-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 13.5px;
-    font-weight: 400;
-    color: var(--muted);
-    transition: all .15s;
-    margin-bottom: 2px;
-  }
-  .nav-item:hover { background: var(--border); color: var(--text); }
-  .nav-item.active { background: rgba(79,142,247,.15); color: var(--accent2); font-weight: 500; }
-  .nav-icon { width: 16px; text-align: center; opacity: .7; }
-
-  .sidebar-footer {
-    padding: 16px 24px 0;
-    border-top: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    line-height: 1.8;
-  }
-
-  /* ── MAIN ── */
-  main {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .topbar {
-    background: var(--sidebar);
-    border-bottom: 1px solid var(--border);
-    padding: 14px 32px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky;
-    top: 0;
-    z-index: 5;
-  }
-  .topbar-title { font-size: 13px; color: var(--muted); font-weight: 400; }
-  .topbar-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    padding: 3px 10px;
-    border-radius: 20px;
-    background: rgba(79,142,247,.1);
-    color: var(--accent);
-    border: 1px solid rgba(79,142,247,.3);
-  }
-
-  .content { padding: 32px; display: flex; flex-direction: column; gap: 24px; }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  .card-header {
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .card-header-num {
-    font-family: var(--mono);
-    font-size: 10px;
-    width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    background: rgba(79,142,247,.2);
-    color: var(--accent);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-  .card-header-title { font-size: 14px; font-weight: 600; color: var(--text); }
-  .card-header-sub { font-size: 12px; color: var(--muted); margin-left: auto; }
-  .card-body { padding: 20px; }
-
-  /* ── FORM ELEMENTS ── */
-  label {
-    display: block;
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--muted);
-    margin-bottom: 6px;
-    letter-spacing: .3px;
-  }
-  input[type="text"], input[type="number"] {
-    background: var(--bg);
-    border: 1px solid var(--border2);
-    border-radius: 6px;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    padding: 9px 12px;
-    width: 100%;
-    transition: border-color .15s;
-    outline: none;
-  }
-  input:focus { border-color: var(--accent); }
-  input::placeholder { color: var(--muted); opacity: .5; }
-
-  .row { display: flex; gap: 14px; align-items: flex-start; }
-  .field { flex: 1; }
-
-  /* ── SIZES ROW ── */
-  .sizes-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
-  }
-  .size-chip {
-    font-family: var(--mono);
-    font-size: 11px;
-    padding: 4px 10px;
-    background: rgba(79,142,247,.1);
-    border: 1px solid rgba(79,142,247,.25);
-    border-radius: 4px;
-    color: var(--accent2);
-  }
-
-  /* ── MARKER GRID ── */
-  .marker-grid-wrap { overflow-x: auto; }
-  table.marker-grid {
-    border-collapse: collapse;
-    width: 100%;
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-  table.marker-grid th {
-    background: rgba(79,142,247,.08);
-    color: var(--accent2);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    padding: 8px 10px;
-    text-align: center;
-    border: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  table.marker-grid td {
-    border: 1px solid var(--border);
-    padding: 4px 6px;
-  }
-  table.marker-grid td.marker-label {
-    color: var(--muted);
-    font-size: 11px;
-    padding: 4px 12px;
-    background: rgba(255,255,255,.02);
-    white-space: nowrap;
-  }
-  table.marker-grid input {
-    background: transparent;
-    border: none;
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
-    text-align: center;
-    padding: 6px 4px;
-    width: 52px;
-    outline: none;
-  }
-  table.marker-grid input:focus { background: rgba(79,142,247,.08); border-radius: 3px; }
-
-  .btn-row { display: flex; gap: 10px; margin-top: 6px; }
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 18px;
-    border-radius: 6px;
-    font-family: var(--sans);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    border: none;
-    transition: all .15s;
-  }
-  .btn-ghost {
-    background: transparent;
-    border: 1px solid var(--border2);
-    color: var(--muted);
-  }
-  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-  .btn-primary {
-    background: var(--accent);
-    color: #fff;
-    box-shadow: 0 4px 16px rgba(79,142,247,.3);
-  }
-  .btn-primary:hover { background: var(--accent2); box-shadow: 0 4px 24px rgba(79,142,247,.5); }
-  .btn-primary:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-  .btn-danger {
-    background: transparent;
-    border: 1px solid rgba(248,113,113,.3);
-    color: var(--danger);
-  }
-  .btn-danger:hover { background: rgba(248,113,113,.1); }
-
-  /* ── SPINNER ── */
-  .spinner {
-    width: 14px; height: 14px;
-    border: 2px solid rgba(255,255,255,.3);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin .6s linear infinite;
-    display: inline-block;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* ── RESULTS ── */
-  #results { display: none; }
-
-  .stat-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-  .stat-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-  }
-  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing: .5px; }
-  .stat-value { font-family: var(--mono); font-size: 24px; font-weight: 600; color: var(--text); }
-  .stat-value.accent { color: var(--accent2); }
-  .stat-value.success { color: var(--success); }
-  .stat-value.warn { color: var(--warn); }
-
-  .result-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 13px;
-  }
-  .result-table th {
-    background: rgba(255,255,255,.03);
-    color: var(--muted);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    padding: 10px 14px;
-    text-align: left;
-    border-bottom: 1px solid var(--border);
-  }
-  .result-table td {
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    font-family: var(--mono);
-    font-size: 12px;
-  }
-  .result-table tr:last-child td { border-bottom: none; }
-  .result-table tr:hover td { background: rgba(255,255,255,.02); }
-  .tag-selected {
-    display: inline-block;
-    padding: 2px 8px;
-    background: rgba(45,212,160,.15);
-    color: var(--success);
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: .5px;
-  }
-  .tag-skipped {
-    display: inline-block;
-    padding: 2px 8px;
-    background: rgba(100,116,139,.1);
-    color: var(--muted);
-    border-radius: 4px;
-    font-size: 10px;
-  }
-  .excess-flag { color: var(--warn); }
-  .excess-ok { color: var(--success); }
-  .total-row td { font-weight: 600; color: var(--accent2); background: rgba(79,142,247,.05); }
-
-  /* ── ERROR / INFO ── */
-  .alert {
-    padding: 14px 18px;
-    border-radius: 8px;
-    font-size: 13px;
-    display: none;
-  }
-  .alert-error { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.3); color: var(--danger); }
-  .alert-info  { background: rgba(79,142,247,.1); border: 1px solid rgba(79,142,247,.3); color: var(--accent2); }
-
-  /* ── LOG ── */
-  .log-box {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 14px 16px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    line-height: 1.9;
-    max-height: 200px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-  }
-  .log-line-ok { color: var(--success); }
-  .log-line-err { color: var(--danger); }
-
-  /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
-
-  /* ── DIVIDER ── */
-  hr { border: none; border-top: 1px solid var(--border); }
-
-  .section-gap { margin-bottom: 16px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cut Ratio Sequencer - Garment Production Planning</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 </head>
 <body>
+    <div class="container">
+        <header>
+            <h1>Cut Ratio Sequencer</h1>
+            <p class="subtitle">Garment Production Planning & Marker Optimization</p>
+        </header>
 
-<!-- SIDEBAR -->
-<aside>
-  <div class="logo">
-    <div class="logo-tag">ILP · Branch & Bound</div>
-    <div class="logo-title">Marker Selection<br>Optimiser</div>
-  </div>
+        <main>
+            <!-- Step 1: Upload CSBD File -->
+            <section class="card" id="upload-section">
+                <h2>1. Upload CSBD File</h2>
+                <div class="upload-area" id="csbd-upload">
+                    <input type="file" id="csbd-file" accept=".xlsx,.xls" hidden>
+                    <div class="upload-content">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                        <p>Drop CSBD Excel file here or click to browse</p>
+                        <span class="file-hint">Expected sheets: CSBD, Marker Info, ShapeShifter Input</span>
+                    </div>
+                </div>
+                <div id="csbd-status" class="status"></div>
+            </section>
 
-  <nav>
-    <div class="nav-section">Workflow</div>
-    <div class="nav-item active">
-      <span class="nav-icon">①</span> Configure Problem
+            <!-- Step 2: Configure Order Parameters -->
+            <section class="card hidden" id="config-section">
+                <h2>2. Order Configuration</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="order-no">Order Number</label>
+                        <input type="text" id="order-no" placeholder="e.g., 452957-6515">
+                    </div>
+                    <div class="form-group">
+                        <label for="style-name">Style Name</label>
+                        <input type="text" id="style-name" placeholder="e.g., LS Body Mixed 2PACK">
+                    </div>
+                    <div class="form-group">
+                        <label for="buyer">Buyer</label>
+                        <input type="text" id="buyer" value="H&M">
+                    </div>
+                    <div class="form-group">
+                        <label for="season">Season</label>
+                        <input type="text" id="season" placeholder="e.g., 2_2025">
+                    </div>
+                    <div class="form-group">
+                        <label for="color">Color</label>
+                        <input type="text" id="color" placeholder="e.g., 76-329(SOLID)">
+                    </div>
+                    <div class="form-group">
+                        <label for="extra-percent">Extra Cutting %</label>
+                        <input type="number" id="extra-percent" value="2" min="0" max="20" step="0.5">
+                    </div>
+                </div>
+
+                <h3>Country Groups</h3>
+                <div class="groups-info">
+                    <div class="group-badge general">General Group</div>
+                    <div class="group-badge china">China Group (CN, OB)</div>
+                    <div class="group-badge us">US Group (CA, CO, DR, EC, LD, MX, OU, US)</div>
+                </div>
+            </section>
+
+            <!-- Step 3: Review Parsed Data -->
+            <section class="card hidden" id="review-section">
+                <h2>3. Review Order Data</h2>
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="csbd">CSBD Data</button>
+                    <button class="tab-btn" data-tab="markers">Marker Info</button>
+                    <button class="tab-btn" data-tab="shapeshifter">ShapeShifter Input</button>
+                </div>
+
+                <div class="tab-content active" id="csbd-tab">
+                    <div class="table-container">
+                        <table id="csbd-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="markers-tab">
+                    <div class="table-container">
+                        <table id="markers-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="tab-content" id="shapeshifter-tab">
+                    <div class="table-container">
+                        <table id="shapeshifter-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 4: Run Sequencing -->
+            <section class="card hidden" id="sequencing-section">
+                <h2>4. Ratio Sequencing</h2>
+                <div class="sequencing-controls">
+                    <button id="run-sequencing" class="btn-primary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polygon points="5 3 19 12 5 21 5 3"/>
+                        </svg>
+                        Run Sequencing Algorithm
+                    </button>
+                    <div class="options">
+                        <label class="checkbox">
+                            <input type="checkbox" id="minimize-overcut" checked>
+                            <span>Minimize total overcut quantity</span>
+                        </label>
+                    </div>
+                </div>
+                <div id="sequencing-status" class="status"></div>
+            </section>
+
+            <!-- Step 5: Results -->
+            <section class="card hidden" id="results-section">
+                <h2>5. Sequencing Results</h2>
+                <div class="results-tabs">
+                    <button class="result-tab-btn active" data-result="general">General Group</button>
+                    <button class="result-tab-btn" data-result="china">China Group</button>
+                    <button class="result-tab-btn" data-result="us">US Group</button>
+                    <button class="result-tab-btn" data-result="summary">Summary</button>
+                </div>
+
+                <div class="result-content active" id="general-results">
+                    <div class="sequence-table-container">
+                        <table id="general-sequence-table" class="sequence-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="result-content" id="china-results">
+                    <div class="sequence-table-container">
+                        <table id="china-sequence-table" class="sequence-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="result-content" id="us-results">
+                    <div class="sequence-table-container">
+                        <table id="us-sequence-table" class="sequence-table">
+                            <thead></thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="result-content" id="summary-results">
+                    <div class="summary-cards">
+                        <div class="summary-card">
+                            <h4>Total Order Quantity</h4>
+                            <div class="summary-value" id="total-order">0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Total Cut Quantity</h4>
+                            <div class="summary-value" id="total-cut">0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Total Overcut</h4>
+                            <div class="summary-value overcut" id="total-overcut">0</div>
+                        </div>
+                        <div class="summary-card">
+                            <h4>Extra Cutting %</h4>
+                            <div class="summary-value" id="extra-cutting-pct">0%</div>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="balance-chart"></canvas>
+                    </div>
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-excel" class="btn-secondary">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Export to Excel
+                    </button>
+                    <button id="export-cad" class="btn-secondary">
+                        Export CAD Cut Plan
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Cut Ratio Sequencer - Garment Production Planning Tool</p>
+        </footer>
     </div>
-    <div class="nav-item" id="nav-results-link" style="opacity:.4;cursor:default">
-      <span class="nav-icon">②</span> Cutting Plan
-    </div>
-    <div style="height:16px"></div>
-    <div class="nav-section">About</div>
-    <div class="nav-item" onclick="toggleAbout()">
-      <span class="nav-icon">?</span> How It Works
-    </div>
-  </nav>
 
-  <div class="sidebar-footer">
-    Solver: HiGHS via Claude AI<br>
-    Method: Mixed-Integer LP<br>
-    Objective: min Σe(j) + ε·Σx(i)
-  </div>
-</aside>
-
-<!-- MAIN -->
-<main>
-  <div class="topbar">
-    <span class="topbar-title">Garment Cutting Room · Optimal Marker Selection</span>
-    <span class="topbar-badge">claude-sonnet-4</span>
-  </div>
-
-  <div class="content">
-
-    <!-- ABOUT PANEL -->
-    <div id="about-panel" class="card" style="display:none">
-      <div class="card-header">
-        <div class="card-header-num">?</div>
-        <div class="card-header-title">How the Solver Works</div>
-      </div>
-      <div class="card-body" style="font-size:13px;line-height:1.8;color:var(--muted)">
-        <p>This tool solves the <strong style="color:var(--text)">Marker Selection Problem</strong> as an Integer Linear Programme (ILP) using the Branch &amp; Bound method.</p>
-        <br>
-        <p><strong style="color:var(--accent2)">Variables</strong> — x(i) ∈ {0,1} whether marker i is used; e(j) ≥ 0 excess pieces for size j.</p>
-        <p><strong style="color:var(--accent2)">Objective</strong> — Minimise Σe(j) + ε·Σx(i) (minimise excess, break ties by fewest markers).</p>
-        <p><strong style="color:var(--accent2)">Constraint</strong> — For each size j: Σᵢ ratio(i,j)·plies(i)·x(i) ≥ order_qty(j).</p>
-        <br>
-        <p>The Claude AI API acts as the solver engine, interpreting the optimisation problem and returning the cutting plan.</p>
-      </div>
-    </div>
-
-    <!-- STEP 1: SIZES -->
-    <div class="card">
-      <div class="card-header">
-        <div class="card-header-num">1</div>
-        <div class="card-header-title">Garment Sizes</div>
-        <div class="card-header-sub">space-separated integers</div>
-      </div>
-      <div class="card-body">
-        <label>Enter all sizes (e.g. 50 56 62 68 74 80 86 92)</label>
-        <div class="row">
-          <div class="field">
-            <input type="text" id="sizes-input" placeholder="50 56 62 68 74 80 86 92 98 104" />
-          </div>
-          <button class="btn btn-ghost" onclick="parseSizes()">Set Sizes →</button>
-        </div>
-        <div class="sizes-chips" id="sizes-chips"></div>
-      </div>
-    </div>
-
-    <!-- STEP 2: ORDER QTY -->
-    <div class="card" id="card-order" style="display:none">
-      <div class="card-header">
-        <div class="card-header-num">2</div>
-        <div class="card-header-title">Order Quantities</div>
-        <div class="card-header-sub">per size</div>
-      </div>
-      <div class="card-body">
-        <label>Enter order quantity for each size in the same order</label>
-        <input type="text" id="order-input" placeholder="quantities matching each size..." />
-        <div id="order-preview" style="margin-top:10px;font-family:var(--mono);font-size:11px;color:var(--muted)"></div>
-      </div>
-    </div>
-
-    <!-- STEP 3: MARKERS -->
-    <div class="card" id="card-markers" style="display:none">
-      <div class="card-header">
-        <div class="card-header-num">3</div>
-        <div class="card-header-title">Markers</div>
-        <div class="card-header-sub" id="marker-count-label"></div>
-      </div>
-      <div class="card-body">
-        <div class="row section-gap">
-          <div class="field" style="max-width:160px">
-            <label>Number of markers</label>
-            <input type="number" id="n-markers" min="1" max="30" value="3" />
-          </div>
-          <div style="padding-top:22px">
-            <button class="btn btn-ghost" onclick="buildMarkerGrid()">Build Grid →</button>
-          </div>
-        </div>
-
-        <div id="marker-grid-container" style="display:none">
-          <div class="marker-grid-wrap">
-            <table class="marker-grid" id="marker-grid"></table>
-          </div>
-          <div style="margin-top:12px;font-size:11px;color:var(--muted)">
-            * Ratio = pieces of that size per lay · Plies = number of lays cut at once
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- SOLVE BUTTON -->
-    <div id="card-solve" style="display:none">
-      <div id="alert-box" class="alert alert-error"></div>
-      <div class="btn-row">
-        <button class="btn btn-primary" id="solve-btn" onclick="runSolver()">
-          ⚡ Run ILP Optimisation
-        </button>
-        <button class="btn btn-ghost" onclick="resetAll()">↺ Reset</button>
-      </div>
-    </div>
-
-    <!-- RESULTS -->
-    <div id="results" class="card">
-      <div class="card-header">
-        <div class="card-header-num">✓</div>
-        <div class="card-header-title">Optimal Cutting Plan</div>
-        <div class="card-header-sub" id="results-meta"></div>
-      </div>
-      <div class="card-body">
-
-        <div class="stat-row">
-          <div class="stat-box">
-            <div class="stat-label">MARKERS SELECTED</div>
-            <div class="stat-value accent" id="stat-markers">—</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">TOTAL EXCESS</div>
-            <div class="stat-value warn" id="stat-excess">—</div>
-          </div>
-          <div class="stat-box">
-            <div class="stat-label">TOTAL PRODUCED</div>
-            <div class="stat-value success" id="stat-produced">—</div>
-          </div>
-        </div>
-
-        <hr style="margin-bottom:20px">
-
-        <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Cutting Plan — Marker Sequence</div>
-        <div style="overflow-x:auto;margin-bottom:24px">
-          <table class="result-table" id="plan-table">
-            <thead>
-              <tr>
-                <th>Step</th><th>Marker</th><th>Plies</th><th>Sizes Covered</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody id="plan-tbody"></tbody>
-          </table>
-        </div>
-
-        <hr style="margin-bottom:20px">
-
-        <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px">Per-Size Breakdown</div>
-        <div style="overflow-x:auto;margin-bottom:24px">
-          <table class="result-table" id="size-table">
-            <thead>
-              <tr>
-                <th>Size</th><th>Produced</th><th>Order Qty</th><th>Excess e(j)</th>
-              </tr>
-            </thead>
-            <tbody id="size-tbody"></tbody>
-          </table>
-        </div>
-
-        <hr style="margin-bottom:16px">
-
-        <div style="font-size:11px;color:var(--muted);font-weight:600;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Solver Log</div>
-        <div class="log-box" id="log-box"></div>
-      </div>
-    </div>
-
-  </div><!-- /content -->
-</main>
-
-<script>
-// ── STATE ──────────────────────────────────────────────────
-let sizes    = [];
-let orderQty = [];
-let markers  = []; // [{name, ratios:[], plies}]
-
-// ── ABOUT TOGGLE ──────────────────────────────────────────
-function toggleAbout() {
-  const p = document.getElementById('about-panel');
-  p.style.display = p.style.display === 'none' ? 'block' : 'none';
-}
-
-// ── STEP 1: SIZES ─────────────────────────────────────────
-function parseSizes() {
-  const raw = document.getElementById('sizes-input').value.trim();
-  const parsed = raw.split(/\s+/).map(Number).filter(n => n > 0 && !isNaN(n));
-  if (parsed.length < 1) return alert('Enter at least one size.');
-  sizes = parsed;
-
-  const chips = document.getElementById('sizes-chips');
-  chips.innerHTML = sizes.map(s => `<span class="size-chip">${s}</span>`).join('');
-
-  // show order card
-  document.getElementById('card-order').style.display = 'block';
-  document.getElementById('order-input').addEventListener('input', previewOrder);
-  // show markers card
-  document.getElementById('card-markers').style.display = 'block';
-  document.getElementById('marker-count-label').textContent = `${sizes.length} sizes loaded`;
-}
-
-// ── STEP 2: ORDER QTY ─────────────────────────────────────
-function previewOrder() {
-  const raw = document.getElementById('order-input').value.trim();
-  const vals = raw.split(/\s+/).map(Number);
-  const div = document.getElementById('order-preview');
-  if (vals.length !== sizes.length) {
-    div.innerHTML = `<span style="color:var(--warn)">⚠ Got ${vals.length}, need ${sizes.length}</span>`;
-    orderQty = [];
-  } else {
-    orderQty = vals;
-    div.innerHTML = sizes.map((s,i) => `<span style="color:var(--accent2)">${s}</span>→${vals[i]}`).join('  ');
-    maybeShowSolve();
-  }
-}
-
-// ── STEP 3: MARKER GRID ───────────────────────────────────
-function buildMarkerGrid() {
-  const n = parseInt(document.getElementById('n-markers').value, 10);
-  if (isNaN(n) || n < 1) return alert('Enter a valid number of markers.');
-
-  const table = document.getElementById('marker-grid');
-  // Header: Marker | Plies | size1 | size2 ...
-  let html = `<thead><tr>
-    <th>Marker</th>
-    <th>Plies</th>
-    ${sizes.map(s => `<th>Size ${s}</th>`).join('')}
-  </tr></thead><tbody>`;
-
-  for (let i = 0; i < n; i++) {
-    html += `<tr>
-      <td class="marker-label">Marker ${i+1}</td>
-      <td><input type="number" id="plies-${i}" min="1" value="1" style="width:52px" /></td>
-      ${sizes.map((_, j) => `<td><input type="number" id="ratio-${i}-${j}" min="0" value="0" /></td>`).join('')}
-    </tr>`;
-  }
-  html += '</tbody>';
-  table.innerHTML = html;
-  document.getElementById('marker-grid-container').style.display = 'block';
-  document.getElementById('card-solve').style.display = 'block';
-}
-
-function maybeShowSolve() {
-  document.getElementById('card-solve').style.display = 'block';
-}
-
-// ── READ MARKER GRID ──────────────────────────────────────
-function readMarkers() {
-  const n = parseInt(document.getElementById('n-markers').value, 10);
-  markers = [];
-  for (let i = 0; i < n; i++) {
-    const plies = parseInt(document.getElementById(`plies-${i}`).value, 10) || 1;
-    const ratios = sizes.map((_, j) => parseInt(document.getElementById(`ratio-${i}-${j}`).value, 10) || 0);
-    markers.push({ name: `Marker ${i+1}`, plies, ratios });
-  }
-}
-
-// ── SOLVER VIA CLAUDE API ─────────────────────────────────
-async function runSolver() {
-  // Validate
-  if (sizes.length === 0) return showAlert('Please set sizes first.');
-  const rawOrder = document.getElementById('order-input').value.trim().split(/\s+/).map(Number);
-  if (rawOrder.length !== sizes.length || rawOrder.some(isNaN)) {
-    return showAlert(`Order quantities must have ${sizes.length} values.`);
-  }
-  orderQty = rawOrder;
-
-  const nMarkers = parseInt(document.getElementById('n-markers').value, 10);
-  if (!document.getElementById(`plies-0`)) return showAlert('Build the marker grid first.');
-  readMarkers();
-
-  if (markers.every(m => m.ratios.every(r => r === 0))) {
-    return showAlert('All ratio values are zero — enter at least one non-zero ratio.');
-  }
-
-  hideAlert();
-  const btn = document.getElementById('solve-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> Solving…';
-  document.getElementById('results').style.display = 'none';
-
-  // Build the prompt
-  const prompt = buildPrompt();
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-
-    const data = await response.json();
-    const text = data.content?.map(b => b.text || '').join('') || '';
-
-    // Parse JSON from response
-    const clean = text.replace(/```json|```/g, '').trim();
-    const match = clean.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error('Could not parse solver response.');
-    const result = JSON.parse(match[0]);
-    renderResults(result);
-  } catch (err) {
-    showAlert('Solver error: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = '⚡ Run ILP Optimisation';
-  }
-}
-
-function buildPrompt() {
-  const markerDescs = markers.map((m, i) => {
-    const ratioStr = sizes.map((s, j) => `size ${s}: ratio ${m.ratios[j]}`).join(', ');
-    return `Marker ${i+1}: plies=${m.plies}, ratios=[${ratioStr}]`;
-  }).join('\n');
-
-  const orderStr = sizes.map((s, j) => `size ${s}: ${orderQty[j]}`).join(', ');
-  const eps = 0.001;
-
-  return `You are an ILP (Integer Linear Programming) solver using Branch & Bound.
-
-PROBLEM: Marker Selection for Garment Cutting
-
-SIZES: ${sizes.join(', ')}
-ORDER QUANTITIES: ${orderStr}
-
-MARKERS (each can be selected x_i ∈ {0,1}):
-${markerDescs}
-
-Production for marker i, size j = ratio(i,j) × plies(i) × x_i
-
-FORMULATION:
-- Variables: x_i ∈ {0,1} (select marker), e_j ≥ 0 (excess for size j)
-- Objective: minimise Σe_j + ${eps}·Σx_i
-- Constraints: For each size j: Σ_i [ratio(i,j) × plies(i) × x_i] - e_j = order_qty(j)
-  (i.e., total production must EXACTLY equal order qty + excess, meaning production ≥ order qty)
-
-Solve this ILP exactly using Branch & Bound. Find the optimal integer solution that minimises total excess pieces while meeting all order quantities.
-
-Return ONLY a JSON object with this exact structure:
-{
-  "selected_markers": [1, 3],
-  "x_values": [1, 0, 1],
-  "excess_per_size": [12, 0, 8, 0, 0, 0, 0, 0],
-  "total_excess": 20,
-  "total_produced": [112, 80, 58, 60, 70, 90, 100, 80],
-  "log": ["Branching on x1...", "Feasible solution found...", "Optimal: obj=20.003"]
-}
-
-Notes:
-- selected_markers: 1-indexed list of selected marker numbers
-- x_values: array of 0/1 for each marker in order
-- excess_per_size: e_j for each size (must be ≥ 0)
-- total_produced[j] = Σ_i ratio(i,j)×plies(i)×x_i (must equal orderQty[j] + excess_per_size[j])
-- Return valid JSON only, no markdown.`;
-}
-
-// ── RENDER RESULTS ────────────────────────────────────────
-function renderResults(r) {
-  const selected = new Set((r.selected_markers || []).map(m => m - 1)); // 0-indexed
-
-  // Stats
-  document.getElementById('stat-markers').textContent = selected.size;
-  document.getElementById('stat-excess').textContent  = (r.total_excess ?? 0).toLocaleString();
-  const totalProd = (r.total_produced || []).reduce((a,b)=>a+b, 0);
-  document.getElementById('stat-produced').textContent = totalProd.toLocaleString();
-  document.getElementById('results-meta').textContent  = new Date().toLocaleTimeString();
-
-  // Plan table
-  let step = 1;
-  const planBody = document.getElementById('plan-tbody');
-  planBody.innerHTML = markers.map((m, i) => {
-    const sel = selected.has(i);
-    const nz  = m.ratios.filter(v => v > 0).length;
-    return `<tr>
-      <td>${sel ? step++ : '—'}</td>
-      <td>${m.name}</td>
-      <td>${m.plies}</td>
-      <td>${nz} size${nz!==1?'s':''}</td>
-      <td>${sel ? '<span class="tag-selected">SELECTED</span>' : '<span class="tag-skipped">skipped</span>'}</td>
-    </tr>`;
-  }).join('');
-
-  // Size breakdown
-  const sizeBody = document.getElementById('size-tbody');
-  const excess   = r.excess_per_size || [];
-  const produced = r.total_produced  || [];
-  let totalOrd = 0, totalProdSum = 0, totalExc = 0;
-
-  sizeBody.innerHTML = sizes.map((s, j) => {
-    const prod = produced[j] || 0;
-    const exc  = excess[j]  || 0;
-    const flag = exc > 350;
-    totalOrd     += orderQty[j];
-    totalProdSum += prod;
-    totalExc     += exc;
-    return `<tr>
-      <td>${s}</td>
-      <td>${prod.toLocaleString()}</td>
-      <td>${orderQty[j].toLocaleString()}</td>
-      <td class="${flag?'excess-flag':'excess-ok'}">+${exc.toLocaleString()}${flag?' ⚠':''}</td>
-    </tr>`;
-  }).join('') + `<tr class="total-row">
-    <td>TOTAL</td>
-    <td>${totalProdSum.toLocaleString()}</td>
-    <td>${totalOrd.toLocaleString()}</td>
-    <td>+${totalExc.toLocaleString()}</td>
-  </tr>`;
-
-  // Log
-  const log = document.getElementById('log-box');
-  const lines = r.log || ['Solver completed.'];
-  log.innerHTML = lines.map(l => {
-    if (/error|infeasible/i.test(l)) return `<div class="log-line-err">${l}</div>`;
-    if (/optimal|feasible|selected/i.test(l)) return `<div class="log-line-ok">${l}</div>`;
-    return `<div>${l}</div>`;
-  }).join('');
-
-  document.getElementById('results').style.display = 'block';
-  document.getElementById('nav-results-link').style.opacity = '1';
-  document.getElementById('nav-results-link').style.cursor  = 'pointer';
-  document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-}
-
-// ── HELPERS ───────────────────────────────────────────────
-function showAlert(msg) {
-  const box = document.getElementById('alert-box');
-  box.textContent = '⚠ ' + msg;
-  box.style.display = 'block';
-}
-function hideAlert() {
-  document.getElementById('alert-box').style.display = 'none';
-}
-function resetAll() {
-  if (!confirm('Reset all inputs?')) return;
-  location.reload();
-}
-</script>
+    <script src="js/countryGroups.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/sequencer.js"></script>
+    <script src="js/exporter.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
